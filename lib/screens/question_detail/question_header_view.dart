@@ -14,10 +14,8 @@ void showFullScreenImage(
   Navigator.push(
     context,
     adaptivePageRoute(
-      builder: (context) => FullScreenImageView(
-        imageUrls: imageUrls,
-        initialIndex: initialIndex,
-      ),
+      builder: (context) =>
+          FullScreenImageView(imageUrls: imageUrls, initialIndex: initialIndex),
     ),
   );
 }
@@ -41,61 +39,39 @@ class QuestionHeaderView extends StatelessWidget {
     final publicTitle = question.publicTitle;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
             Text(
               question.typeStr ?? '未知题型',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const Spacer(),
             Padding(
               padding: const EdgeInsets.fromLTRB(5, 0, 5, 3),
-              child: Text(
-                '${index + 1}',
-                style: const TextStyle(fontSize: 22),
-              ),
+              child: Text('${index + 1}', style: const TextStyle(fontSize: 22)),
             ),
-            Text(
-              '/ $totalCount',
-              style: const TextStyle(color: Colors.grey),
-            ),
+            Text('/ $totalCount', style: const TextStyle(color: Colors.grey)),
           ],
         ),
         const SizedBox(height: 10),
         if (publicTitle != null && publicTitle.isNotEmpty) ...[
-          Text(
-            publicTitle,
-            style: const TextStyle(fontSize: 18),
-          ),
+          Text(publicTitle, style: const TextStyle(fontSize: 18)),
           const SizedBox(height: 10),
         ],
         Text(
           question.title ?? '',
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         if (titleImg != null && titleImg.isNotEmpty)
           InkWell(
             onTap: () {
-              showFullScreenImage(
-                context,
-                [titleImg],
-                0,
-              );
+              showFullScreenImage(context, [titleImg], 0);
             },
             child: Padding(
               padding: const EdgeInsets.all(6),
-              child: AppNetworkImage(
-                imageUrl: titleImg,
-                height: 200,
-              ),
+              child: AppNetworkImage(imageUrl: titleImg, height: 200),
             ),
           ),
       ],

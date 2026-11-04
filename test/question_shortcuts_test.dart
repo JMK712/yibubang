@@ -5,10 +5,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yibubang/common/shortcut_config.dart';
 import 'package:yibubang/models/chapter.dart';
 import 'package:yibubang/models/question.dart';
+import 'package:yibubang/models/question_section_config.dart';
 import 'package:yibubang/screens/question_detail_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await ShortcutConfig.load();
+    await ShortcutConfig.resetAll();
+  });
 
   List<Question> buildQuestions() {
     const String options =
@@ -80,6 +87,64 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('Space 提交校验失败会停留，浏览优先可直接下一题', (tester) async {
+    await pumpPage(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(find.text('多选题要选择多个选项哦~'), findsOneWidget);
+    expect(find.text('第一题（多选）'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(find.text('第一题（多选）'), findsOneWidget);
+    await ShortcutConfig.moveAction(
+      ShortcutAction.nextQuestion,
+      -ShortcutConfig.actionsByPriority.indexOf(ShortcutAction.nextQuestion),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(find.text('第二题（多选）'), findsOneWidget);
+  });
+
+  testWidgets('已判题后 Space 回退到下一题，长按不连翻', (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final sections = QuestionSectionConfig.getDefaultSections();
+    for (final section in sections) {
+      section.enabled = false;
+    }
+    await QuestionSectionConfig.saveConfig(sections);
+    addTearDown(QuestionSectionConfig.resetToDefault);
+    final userQuestions = buildUserQuestions();
+    userQuestions[0].status = 1;
+    userQuestions[0].userAnswer = 'AB';
+    await tester.pumpWidget(
+      MaterialApp(
+        home: QuestionDetailPage(
+          chapter: Chapter(
+            id: 'c1',
+            name: '已判题',
+            subjectId: 's1',
+            correct: 1,
+            incorrect: 0,
+            total: 2,
+          ),
+          questions: buildQuestions(),
+          userQuestions: userQuestions,
+          questionIndex: 0,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(find.text('第二题（多选）'), findsOneWidget);
+    await tester.sendKeyRepeatEvent(LogicalKeyboardKey.space);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(find.text('多选题要选择多个选项哦~'), findsNothing);
+  });
 
   testWidgets('左右方向键切换题目', (WidgetTester tester) async {
     await pumpPage(tester);

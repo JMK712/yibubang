@@ -31,22 +31,26 @@ class QuestionOptionsView extends StatelessWidget {
     final isMemoryMode = (mode == 3);
 
     if (isAnswered || isMemoryMode) {
-      return _buildReadOnlyOptions();
+      return _buildReadOnlyOptions(context);
     }
 
     return _buildCheckableOptions(context);
   }
 
   /// 只读高亮选项列表
-  Widget _buildReadOnlyOptions() {
-    final List<dynamic> optionJson = QuestionDetailController.getOptionJson(question);
+  Widget _buildReadOnlyOptions(BuildContext context) {
+    final List<dynamic> optionJson = QuestionDetailController.getOptionJson(
+      question,
+    );
     final String answer = question.answer ?? '';
     final String currentLastAnswer = getLastAnswer(userQuestion.userAnswer);
     final mode = controller.mode;
 
     final List<Map<String, dynamic>> resolvedOptions = [];
     for (final dynamic item in optionJson) {
-      final Map<String, dynamic> option = Map<String, dynamic>.from(item as Map);
+      final Map<String, dynamic> option = Map<String, dynamic>.from(
+        item as Map,
+      );
       final String key = option['key'] as String? ?? '';
       final bool answerContains = answer.isNotEmpty && answer.contains(key);
       final bool userAnswerContains = currentLastAnswer.contains(key);
@@ -90,6 +94,7 @@ class QuestionOptionsView extends StatelessWidget {
                   padding: const EdgeInsets.all(12.0),
                   child: Text(
                     "${option['key']}. ${option['title']}",
+                    textAlign: DefaultTextStyle.of(context).textAlign,
                     style: TextStyle(
                       fontSize: 16.5,
                       color: option['color'] as Color?,
@@ -106,7 +111,9 @@ class QuestionOptionsView extends StatelessWidget {
 
   /// 交互式作答选项列表
   Widget _buildCheckableOptions(BuildContext context) {
-    final List<dynamic> optionJson = QuestionDetailController.getOptionJson(question);
+    final List<dynamic> optionJson = QuestionDetailController.getOptionJson(
+      question,
+    );
     final mode = controller.mode;
 
     return Column(
@@ -120,7 +127,16 @@ class QuestionOptionsView extends StatelessWidget {
           switch (question.type) {
             case '1': // 单选题
               return RadioListTile<String>(
-                title: Text("$optKey. $optTitle"),
+                title: Text(
+                  "$optKey. $optTitle",
+                  textAlign: DefaultTextStyle.of(context).textAlign,
+                  style: TextStyle(
+                    height: DefaultTextStyle.of(context).style.height,
+                    letterSpacing: DefaultTextStyle.of(
+                      context,
+                    ).style.letterSpacing,
+                  ),
+                ),
                 value: optKey,
                 groupValue: getLastAnswer(userQuestion.userAnswer),
                 onChanged: (String? value) {
@@ -143,7 +159,16 @@ class QuestionOptionsView extends StatelessWidget {
               final String currentAns = getLastAnswer(userQuestion.userAnswer);
               final bool checked = currentAns.contains(optKey);
               return CheckboxListTile(
-                title: Text("$optKey. $optTitle"),
+                title: Text(
+                  "$optKey. $optTitle",
+                  textAlign: DefaultTextStyle.of(context).textAlign,
+                  style: TextStyle(
+                    height: DefaultTextStyle.of(context).style.height,
+                    letterSpacing: DefaultTextStyle.of(
+                      context,
+                    ).style.letterSpacing,
+                  ),
+                ),
                 value: checked,
                 controlAffinity: ListTileControlAffinity.leading,
                 onChanged: (bool? value) {
@@ -207,10 +232,7 @@ class QuestionOptionsView extends StatelessWidget {
                 onStateChanged: onStateChanged,
               );
             },
-            child: const Text(
-              '提交',
-              style: TextStyle(fontSize: 20),
-            ),
+            child: const Text('提交', style: TextStyle(fontSize: 20)),
           ),
         ),
       ),

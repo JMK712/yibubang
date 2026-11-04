@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../common/animation.dart';
 import '../common/app_strings.dart';
 import '../db/data_transfer.dart';
@@ -9,6 +10,7 @@ import '../screens/choosed_subjects_page.dart';
 import '../screens/my_page.dart';
 import '../screens/statistics_page.dart';
 import '../services/app_update_service.dart';
+import '../widgets/navigation_shortcuts.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -151,36 +153,39 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: _onPageChanged,
-        children: const [
-          _KeepAliveTab(child: ChoosedSubjectsPage()),
-          _KeepAliveTab(child: StatisticsPage()),
-          _KeepAliveTab(child: MyPage()),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: _onItemTapped,
-        destinations: const <NavigationDestination>[
-          NavigationDestination(
-            icon: Icon(Icons.book_outlined),
-            selectedIcon: Icon(Icons.book),
-            label: AppStrings.selectedSubjectsTitle,
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            selectedIcon: Icon(Icons.insights),
-            label: AppStrings.statisticsTitle,
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: AppStrings.myPageTitle,
-          ),
-        ],
+    return HomeTabShortcuts(
+      onSelected: _onItemTapped,
+      child: Scaffold(
+        body: PageView(
+          controller: _pageController,
+          onPageChanged: _onPageChanged,
+          children: const [
+            _KeepAliveTab(child: ChoosedSubjectsPage()),
+            _KeepAliveTab(child: StatisticsPage()),
+            _KeepAliveTab(child: MyPage()),
+          ],
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: _onItemTapped,
+          destinations: const <NavigationDestination>[
+            NavigationDestination(
+              icon: Icon(Icons.book_outlined),
+              selectedIcon: Icon(Icons.book),
+              label: AppStrings.selectedSubjectsTitle,
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.insights_outlined),
+              selectedIcon: Icon(Icons.insights),
+              label: AppStrings.statisticsTitle,
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
+              label: AppStrings.myPageTitle,
+            ),
+          ],
+        ),
       ),
     );
   }

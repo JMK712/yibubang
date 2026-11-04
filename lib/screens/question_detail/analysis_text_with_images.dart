@@ -185,7 +185,10 @@ class _AnalysisTextWithImagesState extends State<AnalysisTextWithImages> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text.rich(TextSpan(children: spans)),
+        SizedBox(
+          width: double.infinity,
+          child: Text.rich(TextSpan(children: spans)),
+        ),
         for (var i = index; i < images.length; i++)
           Padding(
             padding: const EdgeInsets.only(top: 8),
@@ -211,7 +214,10 @@ class _AnalysisTextWithImagesState extends State<AnalysisTextWithImages> {
     }
     spans.add(TextSpan(text: text.substring(end)));
     return TextSpan(
-      style: const TextStyle(fontSize: 16, height: 1.8),
+      style: TextStyle(
+        fontSize: 16,
+        height: DefaultTextStyle.of(context).style.height ?? 1.8,
+      ),
       children: spans,
     );
   }

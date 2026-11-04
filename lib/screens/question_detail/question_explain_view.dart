@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../models/question.dart';
 import '../../models/question_section_config.dart';
+import '../../widgets/reading_layout.dart';
 import '../comment_page.dart';
 import 'analysis_text_with_images.dart';
 import 'question_detail_controller.dart';
@@ -53,23 +54,24 @@ class QuestionExplainView extends StatelessWidget {
                     key: const ValueKey('section_answer_stat'),
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            '答案：正确答案 $answer, 你的答案 ',
+                      ReadingContent(
+                        child: Text.rich(
+                          TextSpan(
                             style: const TextStyle(fontSize: 14),
+                            children: [
+                              TextSpan(text: '答案：正确答案 $answer, 你的答案 '),
+                              TextSpan(
+                                text: userAnswer,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: userQuestion.status == 1
+                                      ? Colors.green
+                                      : Colors.red,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            userAnswer,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: userQuestion.status == 1
-                                  ? Colors.green
-                                  : Colors.red,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                       const SizedBox(height: 6),
                       QuestionStatView(
@@ -152,18 +154,25 @@ class QuestionExplainView extends StatelessWidget {
             shrinkWrap: true,
             physics: const ClampingScrollPhysics(),
             children: [
-              QuestionHeaderView(
-                question: question,
-                index: index,
-                totalCount: controller.questions.length,
-              ),
-              const SizedBox(height: 12),
-              QuestionOptionsView(
-                question: question,
-                userQuestion: userQuestion,
-                index: index,
-                controller: controller,
-                onStateChanged: onStateChanged,
+              ReadingContent(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    QuestionHeaderView(
+                      question: question,
+                      index: index,
+                      totalCount: controller.questions.length,
+                    ),
+                    const SizedBox(height: 12),
+                    QuestionOptionsView(
+                      question: question,
+                      userQuestion: userQuestion,
+                      index: index,
+                      controller: controller,
+                      onStateChanged: onStateChanged,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 10),
               ...sectionWidgets,
@@ -192,61 +201,63 @@ class QuestionExplainView extends StatelessWidget {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 10),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Icon(icon, color: orangeAccent, size: 24),
-            const SizedBox(width: 6),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: orangeAccent,
-              ),
-            ),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(
-                Icons.copy_rounded,
-                size: 18,
-                color: orangeAccent,
-              ),
-              tooltip: '复制$title',
-              onPressed: copySection,
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        SelectionArea(
-          contextMenuBuilder: (context, selectableRegionState) {
-            return AdaptiveTextSelectionToolbar.buttonItems(
-              anchors: selectableRegionState.contextMenuAnchors,
-              buttonItems: [
-                ...selectableRegionState.contextMenuButtonItems,
-                ContextMenuButtonItem(
-                  label: '复制全部',
-                  onPressed: () {
-                    selectableRegionState.hideToolbar();
-                    copySection();
-                  },
+    return ReadingContent(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(icon, color: orangeAccent, size: 24),
+              const SizedBox(width: 6),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: orangeAccent,
                 ),
-              ],
-            );
-          },
-          child: AnalysisTextWithImages(
-            text: analysisText,
-            storedImages: storedImages,
-            legacyBaseUrl: _legacyImageBaseUrl,
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(
+                  Icons.copy_rounded,
+                  size: 18,
+                  color: orangeAccent,
+                ),
+                tooltip: '复制$title',
+                onPressed: copySection,
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 10),
-        const Divider(color: Color(0x22888888)),
-      ],
+          const SizedBox(height: 10),
+          SelectionArea(
+            contextMenuBuilder: (context, selectableRegionState) {
+              return AdaptiveTextSelectionToolbar.buttonItems(
+                anchors: selectableRegionState.contextMenuAnchors,
+                buttonItems: [
+                  ...selectableRegionState.contextMenuButtonItems,
+                  ContextMenuButtonItem(
+                    label: '复制全部',
+                    onPressed: () {
+                      selectableRegionState.hideToolbar();
+                      copySection();
+                    },
+                  ),
+                ],
+              );
+            },
+            child: AnalysisTextWithImages(
+              text: analysisText,
+              storedImages: storedImages,
+              legacyBaseUrl: _legacyImageBaseUrl,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Divider(color: Color(0x22888888)),
+        ],
+      ),
     );
   }
 

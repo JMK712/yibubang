@@ -19,6 +19,7 @@ import '../services/ykb_sync_service.dart';
 import '../widgets/common/info_card.dart';
 import '../widgets/common/styled_tile.dart';
 import '../widgets/theme_controller.dart';
+import 'typography_settings_page.dart';
 import 'about_page.dart';
 import 'cloud_sync_page.dart';
 import 'developer_page.dart';
@@ -634,6 +635,21 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               IconTile(
+                icon: Icons.format_align_left,
+                label: '排版',
+                value: '字体、正文宽度与对齐',
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    adaptivePageRoute(
+                      builder: (_) => const TypographySettingsPage(),
+                    ),
+                  );
+                  if (mounted) setState(() {});
+                },
+              ),
+              IconTile(
                 icon: Icons.format_size,
                 label: '刷题字号',
                 trailing: DropdownButton<double>(
@@ -655,7 +671,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               IconTile(
                 icon: Icons.keyboard_outlined,
-                label: '刷题快捷键',
+                label: '快捷键',
                 value: '${ShortcutConfig.boundActionCount} 项已绑定',
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () async {
