@@ -50,12 +50,12 @@ class QuestionExplainView extends StatelessWidget {
             switch (section.id) {
               case 'answer_stat':
                 sectionWidgets.add(
-                  Column(
-                    key: const ValueKey('section_answer_stat'),
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ReadingContent(
-                        child: Text.rich(
+                  ReadingContent(
+                    child: Column(
+                      key: const ValueKey('section_answer_stat'),
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text.rich(
                           TextSpan(
                             style: const TextStyle(fontSize: 14),
                             children: [
@@ -72,24 +72,24 @@ class QuestionExplainView extends StatelessWidget {
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      QuestionStatView(
-                        question: question,
-                        userQuestion: userQuestion,
-                      ),
-                      if (question.source != null &&
-                          question.source!.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Text(
-                            '来源：${question.source}',
-                            style: const TextStyle(fontSize: 14),
-                          ),
+                        const SizedBox(height: 6),
+                        QuestionStatView(
+                          question: question,
+                          userQuestion: userQuestion,
                         ),
-                      const SizedBox(height: 10),
-                      const Divider(color: Color(0x22888888)),
-                    ],
+                        if (question.source != null &&
+                            question.source!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text(
+                              '来源：${question.source}',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        const SizedBox(height: 10),
+                        const Divider(color: Color(0x22888888)),
+                      ],
+                    ),
                   ),
                 );
                 break;

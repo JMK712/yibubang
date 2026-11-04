@@ -3,8 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yibubang/models/chapter.dart';
 import 'package:yibubang/models/question.dart';
+import 'package:yibubang/models/question_section_config.dart';
 import 'package:yibubang/screens/question_detail/question_detail_controller.dart';
+import 'package:yibubang/screens/question_detail/question_explain_view.dart';
 import 'package:yibubang/screens/question_detail/question_page_item.dart';
+import 'package:yibubang/screens/question_detail/question_stat_view.dart';
 import 'package:yibubang/screens/typography_settings_page.dart';
 import 'package:yibubang/widgets/reading_layout.dart';
 
@@ -137,6 +140,89 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('difficulty, statistics, source and divider share answer width', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await layout.update(maxWidth: 640, horizontalInset: 24);
+    final sections = QuestionSectionConfig.getDefaultSections();
+    for (final section in sections) {
+      section.enabled = section.id == 'answer_stat';
+    }
+    await QuestionSectionConfig.saveConfig(sections);
+    addTearDown(QuestionSectionConfig.resetToDefault);
+    final question = Question(
+      id: 'stat-layout',
+      title: '答案区限宽测试',
+      type: '1',
+      typeStr: '单选题',
+      answer: 'A',
+      userAnswer: '',
+      source: '测试来源',
+      option: '[{"key":"A","title":"选项甲"}]',
+    );
+    final uq = UserQuestion(
+      id: 'stat-layout',
+      chapterId: 'c',
+      chapterParentId: 's',
+      cutQuestion: '0',
+      userAnswer: 'A',
+      status: 1,
+      collection: 0,
+    );
+    final controller = QuestionDetailController(
+      chapter: Chapter(
+        id: 'c',
+        name: '排版',
+        subjectId: 's',
+        correct: 1,
+        incorrect: 0,
+        total: 1,
+      ),
+      questions: [question],
+      userQuestions: [uq],
+      initialIndex: 0,
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: QuestionExplainView(
+            question: question,
+            userQuestion: uq,
+            index: 0,
+            controller: controller,
+            onStateChanged: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    for (final position in [
+      ContentPosition.center,
+      ContentPosition.left,
+      ContentPosition.right,
+    ]) {
+      await layout.update(position: position);
+      await tester.pumpAndSettle();
+      final title = tester.getRect(find.text('答案区限宽测试'));
+      final section = find.byKey(const ValueKey('section_answer_stat'));
+      final region = tester.getRect(section);
+      final stats = tester.getRect(find.byType(QuestionStatView));
+      final source = tester.getRect(find.text('来源：测试来源'));
+      final divider = tester.getRect(
+        find.descendant(of: section, matching: find.byType(Divider)),
+      );
+      expect(region.width, 640);
+      for (final rect in [region, stats, source, divider]) {
+        expect(rect.left, title.left);
+        expect(rect.right, title.right);
+      }
+    }
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('narrow viewport adapts padding and full width can be restored', (
     tester,
