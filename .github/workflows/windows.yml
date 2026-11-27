@@ -2,13 +2,18 @@ name: Windows build
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   windows:
     runs-on: windows-2022
+    outputs:
+      preview_tag: ${{ steps.preview.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
 
@@ -33,11 +38,68 @@ jobs:
       - name: Run tests
         run: flutter test
 
+      - name: Set the Dev build version
+        id: preview
+        if: github.repository == 'JMK712/yibubang' && github.ref == 'refs/heads/dev' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        shell: pwsh
+        run: |
+          $version = Select-String -Path pubspec.yaml -Pattern '^version: (\d+\.\d+\.\d+)\+\d+$'
+          if (-not $version) { throw 'Missing app version in pubspec.yaml' }
+          $tag = "dev-build-v$($version.Matches[0].Groups[1].Value)-$env:GITHUB_RUN_ID.$env:GITHUB_RUN_ATTEMPT"
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
       - name: Build Windows app
+        if: steps.preview.outputs.tag == ''
         run: flutter build windows --release
 
+      - name: Build the Dev Windows package
+        if: steps.preview.outputs.tag != ''
+        env:
+          PREVIEW_TAG: ${{ steps.preview.outputs.tag }}
+        shell: pwsh
+        run: |
+          flutter build windows --release "--dart-define=YIBUBANG_WINDOWS_RELEASE_TAG=$env:PREVIEW_TAG"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $bundle = 'build/windows/x64/runner/Release'
+          $zip = "yibubang-$env:PREVIEW_TAG-windows-x64.zip"
+          Compress-Archive -Path "$bundle/*" -DestinationPath $zip
+          $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $zip" | Set-Content -LiteralPath "$zip.sha256" -Encoding ascii
+
       - name: Upload artifact
+        if: steps.preview.outputs.tag == ''
         uses: actions/upload-artifact@v4
         with:
           name: yibubang-windows-release
           path: build/windows/x64/runner/Release/
+
+      - name: Upload the Dev Windows package
+        if: steps.preview.outputs.tag != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-windows-catalog
+          path: yibubang-dev-build-v*-windows-x64.zip*
+          if-no-files-found: error
+
+  publish-dev-windows:
+    needs: windows
+    if: github.repository == 'JMK712/yibubang' && github.ref == 'refs/heads/dev' && needs.windows.outputs.preview_tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dev-windows-catalog
+      - name: Publish the verified package for the Windows version picker
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PREVIEW_TAG: ${{ needs.windows.outputs.preview_tag }}
+        run: |
+          asset="yibubang-$PREVIEW_TAG-windows-x64.zip"
+          sha256sum --check "$asset.sha256"
+          gh release create "$PREVIEW_TAG" "$asset" "$asset.sha256" \
+            --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title "Windows Dev · $PREVIEW_TAG" \
+            --notes "GitHub Actions: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT"

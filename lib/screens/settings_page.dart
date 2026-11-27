@@ -34,6 +34,7 @@ import 'set_theme_color_page.dart';
 import 'shortcut_settings_page.dart';
 import 'sync_debug_log_page.dart';
 import 'typography_settings_page.dart';
+import 'windows_update_page.dart';
 
 enum _UpdateCheckState { idle, checking, hasUpdate, latest }
 
@@ -1077,49 +1078,57 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 onTap: _showGitHubProxyDialog,
               ),
-              IconTile(
-                icon: Icons.system_update,
-                label: '检查更新',
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_updateCheckState == _UpdateCheckState.checking)
-                      const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    else
-                      Text(
-                        _updateCheckState == _UpdateCheckState.idle
-                            ? '点击获取'
-                            : (_updateCheckState == _UpdateCheckState.hasUpdate
-                                  ? '发现新版本'
-                                  : '已是最新'),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight:
-                              _updateCheckState == _UpdateCheckState.hasUpdate
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color:
-                              _updateCheckState == _UpdateCheckState.hasUpdate
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
+              if (WindowsUpdatePage.isSupported)
+                IconTile(
+                  icon: Icons.system_update,
+                  label: 'Windows 更新与版本切换',
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => WindowsUpdatePage.open(context),
+                )
+              else
+                IconTile(
+                  icon: Icons.system_update,
+                  label: '检查更新',
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_updateCheckState == _UpdateCheckState.checking)
+                        const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        Text(
+                          _updateCheckState == _UpdateCheckState.idle
+                              ? '点击获取'
+                              : (_updateCheckState == _UpdateCheckState.hasUpdate
+                                    ? '发现新版本'
+                                    : '已是最新'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight:
+                                _updateCheckState == _UpdateCheckState.hasUpdate
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color:
+                                _updateCheckState == _UpdateCheckState.hasUpdate
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                        size: 20,
                       ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                      size: 20,
-                    ),
-                  ],
+                    ],
+                  ),
+                  onTap: _checkForUpdate,
                 ),
-                onTap: _checkForUpdate,
-              ),
             ],
           ),
         ],

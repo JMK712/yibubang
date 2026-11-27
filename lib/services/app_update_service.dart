@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../common/github_proxy.dart';
 import '../common/version_utils.dart';
+import '../screens/windows_update_page.dart';
 
 /// 应用检查更新与下载安装管理服务
 class AppUpdateService {
@@ -364,6 +365,31 @@ open -n "\$TARGET_APP"
     BuildContext context,
     Map<String, dynamic> updateData,
   ) async {
+    if (WindowsUpdatePage.isSupported) {
+      final openUpdater = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('发现 Windows 新版本'),
+          content: Text(
+            updateData['update_info']?.toString() ?? '可在 Windows 更新中下载安装。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('稍后'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('查看更新'),
+            ),
+          ],
+        ),
+      );
+      if (openUpdater == true && context.mounted) {
+        await WindowsUpdatePage.open(context);
+      }
+      return;
+    }
     final latestVersion = updateData['latest_app'] ?? '';
     final updateInfo = updateData['update_info']?.toString() ?? '发现新版本，请及时更新。';
     final browserUrl = updateData['latest_app_url']?.toString() ??
