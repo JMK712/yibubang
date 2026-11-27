@@ -27,16 +27,16 @@ void main() {
 
       await db.execute('''CREATE TABLE SpacedReviewItem (
         item_id TEXT PRIMARY KEY,
-        plan_id TEXT NOT NULL DEFAULT '',
-        item_type INTEGER NOT NULL DEFAULT 0,
+        plan_id TEXT,
+        item_type TEXT NOT NULL DEFAULT 'question',
         state INTEGER NOT NULL DEFAULT 0,
-        step INTEGER NOT NULL DEFAULT 0,
         reps INTEGER NOT NULL DEFAULT 0,
         lapses INTEGER NOT NULL DEFAULT 0,
-        difficulty REAL NOT NULL DEFAULT 0,
-        stability REAL NOT NULL DEFAULT 0,
+        interval INTEGER NOT NULL DEFAULT 0,
+        ease_factor REAL NOT NULL DEFAULT 2.5,
         due_date INTEGER NOT NULL DEFAULT 0,
         last_review_at INTEGER NOT NULL DEFAULT 0,
+        last_rating INTEGER NOT NULL DEFAULT 0,
         extra TEXT
       )''');
 
@@ -145,13 +145,13 @@ void main() {
       await db.insert('SpacedReviewItem', {
         'item_id': 'q_review_1',
         'plan_id': 'plan_test',
-        'item_type': 0,
+        'item_type': 'flashcard',
         'state': 2, // review
-        'step': 1,
         'reps': 3,
         'lapses': 0,
-        'difficulty': 3.2,
-        'stability': 5.0,
+        'interval': 5,
+        'ease_factor': 2.3,
+        'last_rating': 3,
         'due_date': now + 100000,
         'last_review_at': now,
       });
@@ -170,6 +170,11 @@ void main() {
 
       final outbox = await CloudOutbox.snapshot(db, 'user_test_ext');
       expect(outbox.any((e) => e['kind'] == 'spaced_item' && e['entity_id'] == 'q_review_1'), isTrue);
+      final spacedMutation = await CloudOutbox.mutation(
+        db,
+        outbox.singleWhere((entry) => entry['kind'] == 'spaced_item'),
+      );
+      expect((spacedMutation['payload'] as Map)['item_type'], 1);
       expect(outbox.any((e) => e['kind'] == 'review_plan' && e['entity_id'] == 'plan_test'), isTrue);
     });
 
@@ -208,6 +213,7 @@ void main() {
             'stability': 1.0,
             'due_date': now + 86400000,
             'last_review_at': now,
+            'updated_at': now,
           }
         ],
         'pull_review_plans': [
@@ -234,6 +240,29 @@ void main() {
       final items = await db.query('SpacedReviewItem', where: 'item_id=?', whereArgs: ['fc_remote_1']);
       expect(items.length, 1);
       expect(items.first['plan_id'], 'plan_remote');
+      expect(items.first['item_type'], 'flashcard');
+      final cursor = await CloudOutbox.pullCursor(db, 'user_test_ext');
+      expect(cursor, 10);
+
+      await db.update('SpacedReviewItem', {
+        'interval': 5, 'ease_factor': 2.3, 'last_rating': 3,
+      }, where: 'item_id=?', whereArgs: ['fc_remote_1']);
+      await CloudOutbox.mergePage(db, 'user_test_ext', {
+        ...serverPage,
+        'next_cursor': 11,
+        'high_watermark': 11,
+        'pull_deleted_flashcards': <String>[],
+        'pull_flashcards': <Map<String, dynamic>>[],
+        'pull_spaced_items': [
+          {'item_id': 'fc_remote_1', 'item_type': 0, 'last_review_at': now + 1, 'reps': 2},
+        ],
+      }, cursor);
+      final merged = (await db.query('SpacedReviewItem')).single;
+      expect(merged['item_type'], 'flashcard');
+      expect(merged['reps'], 2);
+      expect(merged['interval'], 5);
+      expect(merged['ease_factor'], 2.3);
+      expect(merged['last_rating'], 3);
 
       final plans = await db.query('ReviewPlans', where: 'id=?', whereArgs: ['plan_remote']);
       expect(plans.length, 1);

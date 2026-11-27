@@ -1,5 +1,7 @@
-import 'review_events.dart';
 import 'package:sqflite/sqflite.dart';
+
+import '../models/spaced_review_item.dart';
+import 'review_events.dart';
 
 /// 用户库事务内捕获字段变更；序号与设备时钟无关，下载合并不会再次入队。
 class CloudOutbox {
@@ -373,7 +375,12 @@ class CloudOutbox {
         where: 'item_id=?',
         whereArgs: [row['entity_id']],
       );
-      if (rows.isNotEmpty) payload.addAll(rows.single);
+      if (rows.isNotEmpty) {
+        payload.addAll(rows.single);
+        final itemType = rows.single['item_type']?.toString();
+        payload['item_type'] =
+            itemType == ReviewItemType.flashcard.value || itemType == '1' ? 1 : 0;
+      }
     } else if (row['kind'] == 'review_plan') {
       final rows = await db.query(
         'ReviewPlans',
@@ -515,11 +522,7 @@ class CloudOutbox {
         final item = Map<String, dynamic>.from(value as Map);
         final itemId = item['item_id']?.toString();
         if (itemId == null || itemId.isEmpty) continue;
-        await tx.insert(
-          'SpacedReviewItem',
-          item,
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await _mergeSpacedItem(tx, itemId, item);
       }
       for (final value in (data['pull_review_plans'] as List? ?? const [])) {
         final plan = Map<String, dynamic>.from(value as Map);
@@ -658,6 +661,60 @@ class CloudOutbox {
       }, conflictAlgorithm: ConflictAlgorithm.replace);
       await tx.update('CloudSyncContext', {'applying': 0}, where: 'id=1');
     });
+  }
+
+  static Future<void> _mergeSpacedItem(
+    Transaction tx,
+    String id,
+    Map<String, dynamic> remote,
+  ) async {
+    final existing = (await tx.query(
+      'SpacedReviewItem',
+      where: 'item_id = ?',
+      whereArgs: [id],
+      limit: 1,
+    )).firstOrNull;
+    final reviewedAt = (remote['last_review_at'] as num?)?.toInt() ?? 0;
+    if (reviewedAt < ((existing?['last_review_at'] as num?)?.toInt() ?? 0)) {
+      return;
+    }
+
+    // Older clients uploaded flashcards with the same numeric type as
+    // questions. The synced card ID still identifies those review items.
+    final isFlashcard = remote['item_type']?.toString() == '1' ||
+        remote['item_type'] == ReviewItemType.flashcard.value ||
+        (await tx.query(
+          'CustomFlashcards',
+          columns: ['id'],
+          where: 'id = ?',
+          whereArgs: [id],
+          limit: 1,
+        )).isNotEmpty;
+    final values = {
+      'item_id': id,
+      'item_type': isFlashcard
+          ? ReviewItemType.flashcard.value
+          : existing?['item_type'] ?? ReviewItemType.question.value,
+      'plan_id': remote['plan_id'],
+      'state': remote['state'] ?? 0,
+      'reps': remote['reps'] ?? 0,
+      'lapses': remote['lapses'] ?? 0,
+      'due_date': remote['due_date'] ?? 0,
+      'last_review_at': reviewedAt,
+      'extra': remote['extra'],
+    };
+    // The wire format also has server-only fields. Keep the scheduler's
+    // local interval, ease factor and last rating on rows already present.
+    if (existing == null) {
+      await tx.insert('SpacedReviewItem', values);
+    } else {
+      await tx.update(
+        'SpacedReviewItem',
+        values,
+        where: 'item_id = ?',
+        whereArgs: [id],
+      );
+    }
   }
 
   static Future<void> mergeQuestion(

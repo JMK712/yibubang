@@ -88,8 +88,16 @@ void main() {
     final writer = await openDatabase(initialFile.path);
     await writer.update('BankMeta', {'source': 'fixture-built-in'});
     await writer.close();
-    final installed = await repository.importFile(initialFile.path);
+    final original = await repository.importFile(initialFile.path);
     final userDb = await UserDBHelper().database;
+    await userDb.update(
+      'QuestionBank',
+      {'local_path': p.join(directory.path, 'previous-install', '$bankId.sqlite')},
+      where: 'bank_id = ?',
+      whereArgs: [bankId],
+    );
+    final installed = (await repository.find(bankId))!;
+    expect(installed.localPath, original.localPath);
     await userDb.insert('YkbBankSyncState', {
       'bank_id': bankId,
       'manifest_fetched_at': DateTime.now().millisecondsSinceEpoch,

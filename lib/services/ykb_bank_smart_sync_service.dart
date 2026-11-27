@@ -216,6 +216,7 @@ class YkbBankSmartSyncService {
     void Function(BankProgress)? onProgress,
   }) async {
     if (_running) {
+      unawaited(SyncDebugLog.instance.record('智能同步 · 跳过 · 已有批次运行'));
       return const YkbBankSmartSyncResult(error: '正在同步中');
     }
     _running = true;
@@ -224,11 +225,13 @@ class YkbBankSmartSyncService {
     Directory? stagingDir;
     var stagingPath = '';
     String? stateBankId;
+    var failureStage = '准备题库';
 
     void log(String message) =>
         unawaited(SyncDebugLog.instance.record('智能同步 · $message'));
 
     void report(BankProgress progress) {
+      failureStage = progress.stage;
       log([
         progress.stage,
         if (progress.chapter.isNotEmpty) progress.chapter,
@@ -606,6 +609,7 @@ class YkbBankSmartSyncService {
         versionOverride: deltaVersion,
         updateEnabled: false,
       );
+      failureStage = '保存章节同步状态';
       try {
         if (await File(stagingPath).exists()) await File(stagingPath).delete();
       } catch (_) {}
@@ -675,7 +679,12 @@ class YkbBankSmartSyncService {
       );
     } catch (e, stack) {
       onProgress?.call(BankProgress(stage: '同步失败：$e'));
-      log('同步失败 · ${e.runtimeType} · 已请求 $_requestsUsed 次');
+      final sqliteCode = e is DatabaseException ? e.getResultCode() : null;
+      log(
+        '同步失败 · $failureStage · ${e.runtimeType}'
+        '${sqliteCode == null ? '' : ' · SQLite $sqliteCode'}'
+        ' · 已请求 $_requestsUsed 次',
+      );
       debugPrint('[ykb-smart-sync] 失败: $e');
       debugPrint('$stack');
       try {

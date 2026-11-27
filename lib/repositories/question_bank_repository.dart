@@ -274,10 +274,15 @@ class QuestionBankRepository {
       'QuestionBank',
       orderBy: 'built_in DESC, name COLLATE NOCASE',
     );
-    return rows.map(QuestionBank.fromMap).toList();
+    return Future.wait(rows.map(QuestionBank.fromMap).map(_resolveBankPath));
   }
 
   Future<QuestionBank?> find(String bankId) async {
+    final bank = await _findStoredBank(bankId);
+    return bank == null ? null : await _resolveBankPath(bank);
+  }
+
+  Future<QuestionBank?> _findStoredBank(String bankId) async {
     final rows = await (await UserDBHelper().database).query(
       'QuestionBank',
       where: 'bank_id = ?',
@@ -285,6 +290,24 @@ class QuestionBankRepository {
       limit: 1,
     );
     return rows.isEmpty ? null : QuestionBank.fromMap(rows.first);
+  }
+
+  Future<QuestionBank> _resolveBankPath(QuestionBank bank) async {
+    if (!bank.isInstalled ||
+        bank.bankId == 'legacy_combined' ||
+        !RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(bank.bankId)) {
+      return bank;
+    }
+    final currentPath = await _databaseManager.pathFor(bank.bankId);
+    if (p.equals(currentPath, bank.localPath)) return bank;
+
+    // A portable install can move with its databases while the catalog
+    // still contains the absolute path from the previous installation.
+    final validation = await validatePath(
+      currentPath,
+      expectedBankId: bank.bankId,
+    );
+    return validation.isValid ? bank.copyWith(localPath: currentPath) : bank;
   }
 
   Future<String> activeBankId() async {
@@ -364,7 +387,7 @@ class QuestionBankRepository {
         : (entity as Directory).rename(destination);
     var committed = false;
     try {
-      final bank = await find(bankId);
+      final bank = await _findStoredBank(bankId);
       if (bank == null) return;
       if (!RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(bankId)) {
         throw const FormatException('题库标识格式不正确');

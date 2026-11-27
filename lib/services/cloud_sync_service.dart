@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../db/data_transfer.dart';
 import '../db/cloud_outbox.dart';
@@ -363,6 +364,7 @@ class CloudSyncService extends ChangeNotifier {
     unawaited(SyncDebugLog.instance.record('医不帮多端同步 · 开始'));
 
     var mergedData = false;
+    var stage = '准备本地数据库';
     void trackCommittedData(Map<String, dynamic> page) {
       mergedData =
           mergedData ||
@@ -404,6 +406,7 @@ class CloudSyncService extends ChangeNotifier {
       int serverTime = 0;
       int batchLimit = 500;
       do {
+        stage = '读取待上传记录';
         final chunk = await CloudOutbox.page(
           userDb,
           owner,
@@ -419,6 +422,7 @@ class CloudSyncService extends ChangeNotifier {
             chunk.isNotEmpty && (chunk.last['seq'] as int) < through;
         final Map<String, dynamic> res;
         try {
+          stage = '请求云端';
           res = await _request(
             '/api/sync',
             method: 'POST',
@@ -453,6 +457,7 @@ class CloudSyncService extends ChangeNotifier {
           throw const FormatException('云同步服务需升级至协议 v2，待上传数据已保留');
         }
         serverTime = (data['server_time'] as num).toInt();
+        stage = '确认已上传记录';
         await userDb.transaction(
           (tx) => CloudOutbox.acknowledge(
             tx,
@@ -462,10 +467,12 @@ class CloudSyncService extends ChangeNotifier {
           ),
         );
         if (data['push_only'] != true && data['next_cursor'] != null) {
+          stage = '合并云端记录';
           await CloudOutbox.mergePage(userDb, owner, data, cursor);
           trackCommittedData(data);
           cursor = data['next_cursor'] as int;
           while (data['has_more'] == true) {
+            stage = '请求云端下一页';
             final response = await _request(
               '/api/sync',
               method: 'POST',
@@ -479,6 +486,7 @@ class CloudSyncService extends ChangeNotifier {
               },
             );
             final page = response['data'] as Map<String, dynamic>;
+            stage = '合并云端记录';
             await CloudOutbox.mergePage(userDb, owner, page, cursor);
             trackCommittedData(page);
             cursor = page['next_cursor'] as int;
@@ -509,6 +517,7 @@ class CloudSyncService extends ChangeNotifier {
       }
 
       // 5. 更新本地同步游标
+      stage = '保存同步时间';
       _lastSyncTime = serverTime;
       await prefs.setInt(_keyLastSyncTime, _lastSyncTime);
 
@@ -532,7 +541,11 @@ class CloudSyncService extends ChangeNotifier {
     } catch (e) {
       _lastError = e.toString();
       debugPrint('[cloud-sync] 同步异常: $e');
-      unawaited(SyncDebugLog.instance.record('医不帮多端同步 · 失败 · ${e.runtimeType}'));
+      final sqliteCode = e is DatabaseException ? e.getResultCode() : null;
+      unawaited(SyncDebugLog.instance.record(
+        '医不帮多端同步 · 失败 · $stage · ${e.runtimeType}'
+        '${sqliteCode == null ? '' : ' · SQLite $sqliteCode'}',
+      ));
       return SyncResult(success: false, message: e.toString());
     } finally {
       _isSyncing = false;
