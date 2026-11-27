@@ -1,6 +1,7 @@
 import 'dart:ffi';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,7 +16,7 @@ class WindowsUpdatePage extends StatefulWidget {
   const WindowsUpdatePage({super.key});
 
   static bool get isSupported =>
-      Platform.isWindows && Abi.current() == Abi.windowsX64;
+      !kIsWeb && Platform.isWindows && Abi.current() == Abi.windowsX64;
 
   static Future<void> open(BuildContext context) async {
     await pushAdaptiveModalPage(
