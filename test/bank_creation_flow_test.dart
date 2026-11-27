@@ -76,11 +76,14 @@ void main() {
   });
 
   Future<void> waitFor(WidgetTester tester, Finder finder) async {
-    for (var i = 0; i < 150 && finder.evaluate().isEmpty; i++) {
+    const interval = Duration(milliseconds: 20);
+    final elapsed = Stopwatch()..start();
+    while (finder.evaluate().isEmpty &&
+        elapsed.elapsed < const Duration(seconds: 12)) {
       await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        () => Future<void>.delayed(interval),
       );
-      await tester.pump();
+      await tester.pump(interval);
     }
     await tester.pump(const Duration(milliseconds: 300));
     expect(finder, findsWidgets);

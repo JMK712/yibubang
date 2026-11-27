@@ -56,11 +56,13 @@ class WindowsUpdateInstaller {
         !RegExp(r'^[a-f0-9]{64}$').hasMatch(sha256)) {
       throw const WindowsUpdateInstallException('安装包连接或 SHA-256 无效。');
     }
-    final target = installDirectory ?? File(Platform.resolvedExecutable).parent;
-    final targetPath = p.normalize(target.absolute.path);
-    if (!p.equals(targetPath, await target.resolveSymbolicLinks()) ||
-        !_isDedicatedFolder(targetPath) ||
-        !_containsApp(targetPath)) {
+    final requested =
+        installDirectory ?? File(Platform.resolvedExecutable).parent;
+    // Windows can spell the same directory with an 8.3 alias or a junction
+    // in a parent path. Stage beside the real installation directory.
+    final targetPath = p.normalize(await requested.resolveSymbolicLinks());
+    final target = Directory(targetPath);
+    if (!_isDedicatedFolder(targetPath) || !_containsApp(targetPath)) {
       throw const WindowsUpdateInstallException('请从独立目录运行解压后的 Windows 应用。');
     }
 
